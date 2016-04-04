@@ -2,6 +2,7 @@ package rfc3161
 
 import (
 	"encoding/asn1"
+	"github.com/cryptoballot/entropychecker"
 	"mime"
 )
 
@@ -29,7 +30,14 @@ func SetMimeTypes() error {
 }
 
 func init() {
-	err := SetMimeTypes()
+	// Make sure we have sufficient entropy and fail to start if there isn't
+	// This only works on Linux.
+	err := entropychecker.WaitForEntropy()
+	if err != nil && err != entropychecker.ErrUnsupportedOS {
+		panic(err)
+	}
+
+	err = SetMimeTypes()
 	if err != nil {
 		panic(err)
 	}
