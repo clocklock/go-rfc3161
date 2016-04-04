@@ -15,6 +15,10 @@ var (
 	OidContentTypeTSTInfo = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 1, 4}
 )
 
+// Supported Extensions
+// By default this is nil. If you wish to add any supported extensions, please add them here.
+var SupportedExtensions []asn1.ObjectIdentifier
+
 func SetMimeTypes() error {
 	err := mime.AddExtensionType(".tsq", "application/timestamp-query")
 	if err != nil {

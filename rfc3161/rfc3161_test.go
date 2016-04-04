@@ -10,7 +10,7 @@ import (
 
 import "github.com/davecgh/go-spew/spew"
 
-func TestTSR(t *testing.T) {
+func TestTSRUnmarshal(t *testing.T) {
 	der, err := ioutil.ReadFile("./test/sha1.tsq")
 	if err != nil {
 		t.Error(err)
@@ -24,8 +24,14 @@ func TestTSR(t *testing.T) {
 	if len(rest) != 0 {
 		t.Error("Got unrecognized data in the TSR")
 	}
+	err = tsr.Verify()
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-	// Contruct the same tsr manually
+// Contruct the tsr manually
+func TestTSRBuildManually(t *testing.T) {
 	mes, err := ioutil.ReadFile("./test/message.txt")
 	if err != nil {
 		t.Error(err)
@@ -36,4 +42,14 @@ func TestTSR(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	err = tsr2.GenerateNonce()
+	if err != nil {
+		t.Error(err)
+	}
+	err = tsr2.Verify()
+	if err != nil {
+		t.Error(err)
+	}
+
+	spew.Dump(tsr2)
 }
