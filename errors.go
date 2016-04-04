@@ -20,29 +20,28 @@ type PKIError struct {
 }
 
 func (e *PKIError) Error() string {
-
-	output := ""
+	var output string
 	switch e.Failure {
 	case FailureBadAlg:
-		output += "Unrecognized or unsupported Algorithm Identifier. "
+		output = "Unrecognized or unsupported Algorithm Identifier."
 	case FailureBadRequest:
-		output += "Transaction not permitted or supported. "
+		output = "Transaction not permitted or supported."
 	case FailureDataFormat:
-		output += "The data submitted has the wrong format. "
+		output = "The data submitted has the wrong format."
 	case FailureTimeNotAvailabe:
-		output += "The TSA's time source is not available. "
+		output = "The TSA's time source is not available."
 	case FailureUnacceptedPolicy:
-		output += "The requested TSA policy is not supported by the TSA. "
+		output = "The requested TSA policy is not supported by the TSA."
 	case FailureUunacceptedExtension:
-		output += "The requested extension is not supported by the TSA. "
+		output = "The requested extension is not supported by the TSA."
 	case FailureAddInfoNotAvailable:
-		output += "The additional information requested could not be understood or is not available. "
+		output = "The additional information requested could not be understood or is not available."
 	case FailureSystemFailure:
-		output += "The request cannot be handled due to system failure. "
+		output = "The request cannot be handled due to system failure."
 	}
 
 	if e.Cause != nil {
-		output += e.Cause.Error()
+		output += " " + e.Cause.Error()
 	}
 
 	return output
