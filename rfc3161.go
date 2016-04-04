@@ -1,12 +1,9 @@
 package rfc3161
 
 import (
+	"encoding/asn1"
 	"mime"
 )
-
-// Configuration
-// Set InitMimeTypes to initialize mimetimes for timestamp-query and timestamp-reply
-var InitMimeTypes bool
 
 // OID Identifiers
 var (
@@ -32,10 +29,8 @@ func SetMimeTypes() error {
 }
 
 func init() {
-	if InitMimeTypes {
-		err := SetMimeTypes()
-		if err != nil {
-			panic(err)
-		}
+	err := SetMimeTypes()
+	if err != nil {
+		panic(err)
 	}
 }
