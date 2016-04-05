@@ -103,19 +103,22 @@ func (tsr *TimeStampReq) Verify() error {
 	}
 
 	// Check for any unsupported critical extensions
-	for _, ext := range tsr.Extensions {
-		if ext.Critical {
-			supported := false
-			if SupportedExtensions != nil {
-				for _, se := range SupportedExtensions {
-					if se.Equal(ext.Id) {
-						supported = true
-						break
+	// Critical Extensions should be registered in rfc3161.SupportedExtensions
+	if tsr.Extensions != nil {
+		for _, ext := range tsr.Extensions {
+			if ext.Critical {
+				supported := false
+				if supportedExtensions != nil {
+					for _, se := range supportedExtensions {
+						if se.Equal(ext.Id) {
+							supported = true
+							break
+						}
 					}
 				}
-			}
-			if !supported {
-				return ErrUnsupportedExt
+				if !supported {
+					return ErrUnsupportedExt
+				}
 			}
 		}
 	}

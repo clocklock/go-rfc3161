@@ -1,5 +1,9 @@
 package rfc3161
 
+import (
+	"errors"
+)
+
 // Failure Info
 type PKIFailureInfo int
 
@@ -17,6 +21,16 @@ const (
 type PKIError struct {
 	Failure PKIFailureInfo
 	Cause   error
+}
+
+func NewPKIError(status PKIStatusInfo) *PKIError {
+	pkierr := PKIError{
+		Failure: status.FailInfo,
+	}
+	if status.StatusString != "" {
+		pkierr.Cause = errors.New(status.StatusString)
+	}
+	return &pkierr
 }
 
 func (e *PKIError) Error() string {
