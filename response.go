@@ -13,6 +13,7 @@ import (
 // Errors
 var (
 	ErrIncorrectNonce = errors.New("rfc3161: response: Response has incorrect nonce.")
+	ErrNoTST          = errors.New("rfc3161: response: Response does not contain TSTInfo.")
 )
 
 // Status Codes
@@ -36,8 +37,8 @@ func (status PKIStatus) IsError() bool {
 }
 
 type TimeStampResp struct {
-	Status         PKIStatusInfo
-	TimeStampToken `asn1:"optional"`
+	Status          PKIStatusInfo
+	*TimeStampToken `asn1:"optional"`
 }
 
 // Read a .tsr file into a TimeStampResp
@@ -97,7 +98,7 @@ type PKIStatusInfo struct {
 
 type TimeStampToken struct {
 	ContentType asn1.ObjectIdentifier // MUST BE OidSignedData
-	SignedData  `asn1:"tag:0,explicit,optional"`
+	*SignedData `asn1:"tag:0,explicit,optional"`
 }
 
 // See RFC 2630
@@ -140,6 +141,10 @@ type EncapsulatedContentInfo struct {
 }
 
 func (eci *EncapsulatedContentInfo) GetTSTInfo() (*TSTInfo, error) {
+	if len(eci.EContent) == 0 {
+		return nil, ErrNoTST
+	}
+
 	tstinfo := new(TSTInfo)
 	rest, err := asn1.Unmarshal(eci.EContent, tstinfo)
 	if err != nil {
@@ -158,7 +163,7 @@ type TSTInfo struct {
 	MessageImprint MessageImprint        // MUST have the same value of MessageImprint in matching TimeStampReq
 	SerialNumber   *big.Int              // Time-Stamping users MUST be ready to accommodate integers up to 160 bits
 	GenTime        time.Time             // The time at which it was stamped
-	Accuracy       Accuracy              `asn1:"optional"`
+	Accuracy       *Accuracy             `asn1:"optional"`
 	Ordering       bool                  `asn1:"optional"`       // True if SerialNumber increases monotonically with time.
 	Nonce          *big.Int              `asn1:"optional"`       // MUST be present if the similar field was present in TimeStampReq.  In that case it MUST have the same value.
 	TSA            asn1.RawValue         `asn1:"optional,tag:0"` // TODO: GeneralName from PKIX1Implicit88... pkix.RDNSequence?
@@ -169,4 +174,8 @@ type Accuracy struct {
 	Seconds int `asn1:"optional"`
 	Millis  int `asn1:"optional,tag:0"`
 	Micros  int `asn1:"optional,tag:1"`
+}
+
+func (acc *Accuracy) Duration() *time.Duration {
+	return (Accuracy.Seconds * time.Second) + (Accuracy.Millis * time.Millisecond) + (Accuracy.Micros + time.Microsecond)
 }
