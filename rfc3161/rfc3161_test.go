@@ -22,8 +22,24 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	resp, err := ReadTSR("./test/sha1.response.tsr")
+	if err != nil {
+		t.Error(err)
+	}
+	err = resp.Verify(req)
+	if err != nil {
+		t.Error(err)
+	}
+
+	req, err = ReadTSQ("./test/sha1_nonce.tsq")
+	if err != nil {
+		t.Error(err)
+	}
+	err = req.Verify()
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err = ReadTSR("./test/sha1_nonce.response.tsr")
 	if err != nil {
 		t.Error(err)
 	}
