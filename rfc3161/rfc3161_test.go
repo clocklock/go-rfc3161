@@ -72,19 +72,30 @@ func TestOpenSSL(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	// Files
-	keypath := dir + "/private.pem"
-	csrpath := dir + "/request.csr"
-	crtpath := dir + "/cert.pem"
-	tsqpath := dir + "/request.tsq"
-	tsrpath := dir + "/response.tsr"
+	keypath := "private.pem"
+	csrpath := "request.csr"
+	crtpath := "cert.pem"
+	tsqpath := "request.tsq"
+	tsrpath := "response.tsr"
+	cnfpath := "openssl.conf"
+	mespath := "message.txt"
+
+	// Copy config and message
+	os.Link("test/openssl.conf", dir+"/"+cnfpath)
+	os.Link("test/message.txt", dir+"/"+mespath)
+
+	// Change directory to our temporary working directory
+	curdir, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(curdir)
 
 	// Commands
 	commands := [][]string{
 		{"genrsa", "-out", keypath, "1024"},
-		{"req", "-new", "-key", keypath, "-out", csrpath, "-subj", "/C=GB/ST=London/L=London/O=GORFC3161/OU=Testing/CN=example.com", "-config", "test/openssl.conf"},
-		{"x509", "-req", "-days", "365", "-in", csrpath, "-signkey", keypath, "-out", crtpath, "-extfile", "test/openssl.conf"},
-		{"ts", "-query", "-data", "test/message.txt", "-sha1", "-out", tsqpath},
-		{"ts", "-reply", "-queryfile", tsqpath, "-out", tsrpath, "-inkey", keypath, "-signer", crtpath, "-config", "test/openssl.conf"},
+		{"req", "-new", "-key", keypath, "-out", csrpath, "-subj", "/C=GB/ST=London/L=London/O=GORFC3161/OU=Testing/CN=example.com", "-config", cnfpath},
+		{"x509", "-req", "-days", "365", "-in", csrpath, "-signkey", keypath, "-out", crtpath, "-extfile", cnfpath},
+		{"ts", "-query", "-data", mespath, "-sha1", "-out", tsqpath},
+		{"ts", "-reply", "-queryfile", tsqpath, "-out", tsrpath, "-inkey", keypath, "-signer", crtpath, "-config", cnfpath},
 	}
 
 	// Run commands
