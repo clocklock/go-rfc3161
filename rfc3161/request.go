@@ -7,6 +7,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"github.com/phayes/cryptoid"
+	"io/ioutil"
 	"math/big"
 )
 
@@ -21,7 +22,7 @@ type TimeStampReq struct {
 	MessageImprint MessageImprint        // A hash algorithm OID and the hash value of the data to be time-stamped
 	ReqPolicy      asn1.ObjectIdentifier `asn1:"optional"` // Identifier for the policy. For many TSA's, often the same as SignedData.DigestAlgorithm
 	Nonce          *big.Int              `asn1:"optional"` // Nonce could be up to 160 bits
-	CertReq        bool                  // If set to true, the TSA's certificate MUST be provided in the response.
+	CertReq        bool                  `asn1:"optional"` // If set to true, the TSA's certificate MUST be provided in the response.
 	Extensions     []pkix.Extension      `asn1:"optional,tag:0"`
 }
 
@@ -41,6 +42,23 @@ func NewTimeStampReq(hash crypto.Hash, digest []byte) (*TimeStampReq, error) {
 	}
 
 	return tsr, nil
+}
+
+// Read a .tsq file into a TimeStampReq
+func ReadTSQ(filename string) (*TimeStampReq, error) {
+	der, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	req := new(TimeStampReq)
+	rest, err := asn1.Unmarshal(der, req)
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) != 0 {
+		return req, ErrUnrecognizedData
+	}
+	return req, nil
 }
 
 // Set the Hash Algorithm and the Hash Digest for the Time Stamp Request

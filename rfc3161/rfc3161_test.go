@@ -3,35 +3,39 @@ package rfc3161
 import (
 	"crypto"
 	"crypto/sha1"
-	"encoding/asn1"
+	"errors"
+	"fmt"
+	"github.com/blang/semver"
 	"io/ioutil"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
 )
 
-import "github.com/davecgh/go-spew/spew"
-
-func TestTSRUnmarshal(t *testing.T) {
-	der, err := ioutil.ReadFile("./test/sha1.tsq")
+func TestUnmarshal(t *testing.T) {
+	req, err := ReadTSQ("./test/sha1.tsq")
+	if err != nil {
+		t.Error(err)
+	}
+	err = req.Verify()
 	if err != nil {
 		t.Error(err)
 	}
 
-	tsr := new(TimeStampReq)
-	rest, err := asn1.Unmarshal(der, tsr)
+	resp, err := ReadTSR("./test/sha1.response.tsr")
 	if err != nil {
 		t.Error(err)
 	}
-	if len(rest) != 0 {
-		t.Error("Got unrecognized data in the TSR")
-	}
-	err = tsr.Verify()
+	err = resp.Verify(req)
 	if err != nil {
 		t.Error(err)
 	}
+
 }
 
 // Contruct the tsr manually
-func TestTSRBuildManually(t *testing.T) {
+func TestReqBuildManually(t *testing.T) {
 	mes, err := ioutil.ReadFile("./test/message.txt")
 	if err != nil {
 		t.Error(err)
@@ -50,6 +54,76 @@ func TestTSRBuildManually(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
 
-	spew.Dump(tsr2)
+// Round-trip test with OpenSSL
+func TestOpenSSL(t *testing.T) {
+	err := checkOpenSSL()
+	if err != nil {
+		fmt.Println("Unable to test OpenSSL. Skipping OpenSSL Test. " + err.Error())
+		return
+	}
+
+	// Create temp dir
+	dir, err := ioutil.TempDir("", "rfc3161_test")
+	if err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	// Files
+	keypath := dir + "/private.pem"
+	csrpath := dir + "/request.csr"
+	crtpath := dir + "/cert.pem"
+	tsqpath := dir + "/request.tsq"
+	tsrpath := dir + "/response.tsr"
+
+	// Commands
+	commands := [][]string{
+		{"genrsa", "-out", keypath, "1024"},
+		{"req", "-new", "-key", keypath, "-out", csrpath, "-subj", "/C=GB/ST=London/L=London/O=GORFC3161/OU=Testing/CN=example.com", "-config", "test/openssl.conf"},
+		{"x509", "-req", "-days", "365", "-in", csrpath, "-signkey", keypath, "-out", crtpath, "-extfile", "test/openssl.conf"},
+		{"ts", "-query", "-data", "test/message.txt", "-sha1", "-out", tsqpath},
+		{"ts", "-reply", "-queryfile", tsqpath, "-out", tsrpath, "-inkey", keypath, "-signer", crtpath, "-config", "test/openssl.conf"},
+	}
+
+	// Run commands
+	for _, cmd := range commands {
+		out, err := exec.Command("openssl", cmd...).Output()
+		if err != nil {
+			t.Error(err, string(out), string(err.(*exec.ExitError).Stderr))
+		}
+	}
+
+	req, err := ReadTSQ(tsqpath)
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := ReadTSR(tsrpath)
+	if err != nil {
+		t.Error(err)
+	}
+	err = resp.Verify(req)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func checkOpenSSL() error {
+	out, err := exec.Command("openssl", "version").Output()
+	if err != nil {
+		return err
+	}
+	ver := strings.TrimRight(strings.Split(string(out), " ")[1], "abcdefghijklmnopqrstuvwxyz")
+	version, err := semver.Make(ver)
+	if err != nil {
+		return err
+	}
+	requiredVersion, _ := semver.Make("1.0.0")
+
+	if version.LT(requiredVersion) {
+		return errors.New("OpenSSL is required to be at least version 1.0.0 to test Time Stamping")
+	}
+
+	return nil
 }

@@ -3,12 +3,9 @@ package rfc3161
 import (
 	"bytes"
 	"encoding/asn1"
-	"errors"
 	"io/ioutil"
 	"net/http"
 )
-
-var ErrUnrecognizedData = errors.New("rfc3161: client: Got unrecognized data in the TSR")
 
 type Client struct {
 	HttpClient *http.Client

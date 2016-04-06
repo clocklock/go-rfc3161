@@ -4,6 +4,11 @@ import (
 	"errors"
 )
 
+// Misc Errors
+var (
+	ErrUnrecognizedData = errors.New("rfc3161: Got unrecognized data and end of DER.")
+)
+
 // Failure Info
 type PKIFailureInfo int
 
