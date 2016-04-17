@@ -163,13 +163,35 @@ func (resp *TimeStampResp) VerifyCertificate(cert *x509.Certificate) error {
 		return ErrCertificateKeyUsage
 	}
 
-	// First check the key usage
+	// Next check the extended key usage
 	// Only one ExtKeyUsage may be defined as per RFC 3161
 	if len(cert.ExtKeyUsage) != 1 {
 		return ErrCertificateExtKeyUsageUsage
 	}
 	if cert.ExtKeyUsage[0] != x509.ExtKeyUsageTimeStamping {
 		return ErrCertificateExtKeyUsageUsage
+	}
+
+	// Check to make sure it has the correct extension
+	// Only one Extended Key Usage may be defined, it must be critical,
+	// and it must be OidExtKeyUsageTimeStamping
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal(OidExtKeyUsage) {
+			if !ext.Critical {
+				return ErrCertificateExtKeyUsageUsage
+			}
+			var rfc3161Ext []asn1.ObjectIdentifier
+			_, err := asn1.Unmarshal(ext.Value, &rfc3161Ext)
+			if err != nil {
+				return err
+			}
+			if len(rfc3161Ext) != 1 {
+				return ErrCertificateExtKeyUsageUsage
+			}
+			if !rfc3161Ext[0].Equal(OidExtKeyUsageTimeStamping) {
+				return ErrCertificateExtKeyUsageUsage
+			}
+		}
 	}
 
 	// Check to make sure the DigestAlgorithm specified in the response matches the certificate
