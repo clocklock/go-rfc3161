@@ -1,7 +1,6 @@
 package rfc3161
 
 import (
-	//"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
@@ -12,36 +11,20 @@ import (
 
 // Errors
 var (
-	ErrIncorrectNonce = errors.New("rfc3161: response: Response has incorrect nonce.")
-	ErrNoTST          = errors.New("rfc3161: response: Response does not contain TSTInfo.")
+	ErrIncorrectNonce = errors.New("rfc3161: response: Response has incorrect nonce")
+	ErrNoTST          = errors.New("rfc3161: response: Response does not contain TSTInfo")
 )
 
-// Status Codes
-type PKIStatus int
-
-const (
-	StatusGranted                = iota // When the PKIStatus contains the value zero a TimeStampToken, as requested, is present.
-	StatusGrantedWithMods               // When the PKIStatus contains the value one a TimeStampToken, with modifications, is present.
-	StatusRejection                     // When the request is invalid or otherwise rejected.
-	StatusWaiting                       // When the request is being processed and the client should check back later.
-	StatusRevocationWarning             // Warning that a revocation is imminent.
-	StatusRevocationNotification        // Notification that a revocation has occurred.
-)
-
-func (status PKIStatus) IsError() bool {
-	if status != StatusGranted && status != StatusGrantedWithMods && status != StatusWaiting {
-		return true
-	} else {
-		return false
-	}
-}
-
+// TimeStampResp contains a full Time Stamp Response as defined by RFC 3161
+// It is also known as a "Time Stamp Reply"
+// When stored into a file it should contain the extension ".tsr"
+// It has a mime-type of "application/timestamp-reply"
 type TimeStampResp struct {
 	Status         PKIStatusInfo
 	TimeStampToken `asn1:"optional"`
 }
 
-// Read a .tsr file into a TimeStampResp
+// ReadTSR reads a .tsr file into a TimeStampResp
 func ReadTSR(filename string) (*TimeStampResp, error) {
 	der, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -58,6 +41,8 @@ func ReadTSR(filename string) (*TimeStampResp, error) {
 	return resp, nil
 }
 
+// Verify does a full verification of the Time Stamp Response
+// including cryptographic verification of the signature
 func (resp *TimeStampResp) Verify(req *TimeStampReq) error {
 	tst, err := resp.GetTSTInfo()
 	if err != nil {
@@ -72,7 +57,7 @@ func (resp *TimeStampResp) Verify(req *TimeStampReq) error {
 
 	// Verify the status
 	if resp.Status.Status.IsError() {
-		return NewPKIError(resp.Status)
+		return &resp.Status
 	}
 
 	// Verify the nonce
@@ -90,18 +75,14 @@ func (resp *TimeStampResp) Verify(req *TimeStampReq) error {
 	return nil
 }
 
-type PKIStatusInfo struct {
-	Status       PKIStatus
-	StatusString string         `asn1:"optional,utf8"`
-	FailInfo     PKIFailureInfo `asn1:"optional"`
-}
-
+// TimeStampToken is a wrapper than contains the OID for a TimeStampToken
+// as well as the wrapped SignedData
 type TimeStampToken struct {
 	ContentType asn1.ObjectIdentifier // MUST BE OidSignedData
 	SignedData  `asn1:"tag:0,explicit,optional"`
 }
 
-// See RFC 2630
+// SignedData is a shared-standard as defined by RFC 2630
 type SignedData struct {
 	Version          int                        `asn1:"default:4"`
 	DigestAlgorithms []pkix.AlgorithmIdentifier `asn1:"set"`
@@ -111,7 +92,7 @@ type SignedData struct {
 	SignerInfos  []SignerInfo           `asn1:"optional,set"` // Not optional in the spec, but optional in the OpenSSL implementation
 }
 
-// See RFC 2630
+// SignerInfo is a shared-standard as defined by RFC 2630
 type SignerInfo struct {
 	Version            int                   `asn1:"default:1"`
 	SID                IssuerAndSerialNumber // Not supporting CHOICE subjectKeyIdentifier
@@ -122,24 +103,42 @@ type SignerInfo struct {
 	UnsignedAtrributes []Attribute `asn1:"optional,tag:1"`
 }
 
-// See RFC 2630
+// IssuerAndSerialNumber is defined in RFC 2630
 type IssuerAndSerialNumber struct {
 	IssuerName   pkix.RDNSequence
 	SerialNumber *big.Int
 }
 
-// See RFC 2630
+// Attribute is defined in RFC 2630
 type Attribute struct {
 	Type  asn1.ObjectIdentifier
 	Value asn1.RawValue `asn1:"set"`
 }
 
-// See RFC 2630
+// EncapsulatedContentInfo is defined in RFC 2630
+//
+// The fields of type EncapsulatedContentInfo of the SignedData
+// construct have the following meanings:
+//
+// eContentType is an object identifier that uniquely specifies the
+// content type.  For a time-stamp token it is defined as:
+//
+// id-ct-TSTInfo  OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+// us(840) rsadsi(113549) pkcs(1) pkcs-9(9) smime(16) ct(1) 4}
+//
+// eContent is the content itself, carried as an octet string.
+// The eContent SHALL be the DER-encoded value of TSTInfo.
+//
+// The time-stamp token MUST NOT contain any signatures other than the
+// signature of the TSA.  The certificate identifier (ESSCertID) of the
+// TSA certificate MUST be included as a signerInfo attribute inside a
+// SigningCertificate attribute.
 type EncapsulatedContentInfo struct {
 	EContentType asn1.ObjectIdentifier // MUST BE OidContentTypeTSTInfo
 	EContent     asn1.RawContent       `asn1:"explicit,optional,tag:0"` // DER encoding of TSTInfo
 }
 
+// GetTSTInfo unpacks the DER encoded TSTInfo and returns it
 func (eci *EncapsulatedContentInfo) GetTSTInfo() (*TSTInfo, error) {
 	if len(eci.EContent) == 0 {
 		return nil, ErrNoTST
@@ -157,6 +156,8 @@ func (eci *EncapsulatedContentInfo) GetTSTInfo() (*TSTInfo, error) {
 	return tstinfo, nil
 }
 
+// TSTInfo is the acutal DER signed data and represents the core of the Time Stamp Reponse.
+// It contains the time-stamp, the accuracy, and all other pertinent informatuon
 type TSTInfo struct {
 	Version        int                   `asn1:"default:1"`
 	Policy         asn1.ObjectIdentifier // Identifier for the policy. For many TSA's, often the same as SignedData.DigestAlgorithm
@@ -170,12 +171,29 @@ type TSTInfo struct {
 	Extensions     []pkix.Extension      `asn1:"optional,tag:1"`
 }
 
+// Accuracy represents the time deviation around the UTC time.
+//
+// If either seconds, millis or micros is missing, then a value of zero
+// MUST be taken for the missing field.
+//
+// By adding the accuracy value to the GeneralizedTime, an upper limit
+// of the time at which the time-stamp token has been created by the TSA
+// can be obtained.  In the same way, by subtracting the accuracy to the
+// GeneralizedTime, a lower limit of the time at which the time-stamp
+// token has been created by the TSA can be obtained.
+//
+// Accuracy can be decomposed in seconds, milliseconds (between 1-999)
+// and microseconds (1-999), all expressed as integer.
+//
+// When the accuracy field is not present, then the accuracy
+// may be available through other means, e.g., the TSAPolicyId.
 type Accuracy struct {
 	Seconds int `asn1:"optional"`
 	Millis  int `asn1:"optional,tag:0"`
 	Micros  int `asn1:"optional,tag:1"`
 }
 
+// Duration gets the time.Duration representation of the Accuracy
 func (acc *Accuracy) Duration() time.Duration {
 	return (time.Duration(acc.Seconds) * time.Second) + (time.Duration(acc.Millis) * time.Millisecond) + (time.Duration(acc.Micros) + time.Microsecond)
 }

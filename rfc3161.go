@@ -2,8 +2,15 @@ package rfc3161
 
 import (
 	"encoding/asn1"
-	"github.com/cryptoballot/entropychecker"
+	"errors"
 	"mime"
+
+	"github.com/cryptoballot/entropychecker"
+)
+
+// Misc Errors
+var (
+	ErrUnrecognizedData = errors.New("rfc3161: Got unrecognized data and end of DER")
 )
 
 // OID Identifiers
@@ -39,7 +46,7 @@ func RegisterExtension(extension asn1.ObjectIdentifier) {
 	supportedExtensions = append(supportedExtensions, extension)
 }
 
-// List all supported extensions
+// ListExtensions lists all supported extensions
 func ListExtensions() []asn1.ObjectIdentifier {
 	if supportedExtensions == nil {
 		return make([]asn1.ObjectIdentifier, 0, 0)

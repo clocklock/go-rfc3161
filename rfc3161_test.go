@@ -5,12 +5,13 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
-	"github.com/blang/semver"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/blang/semver"
 )
 
 func TestUnmarshal(t *testing.T) {

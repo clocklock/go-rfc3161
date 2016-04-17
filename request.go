@@ -6,17 +6,23 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
-	"github.com/phayes/cryptoid"
 	"io/ioutil"
 	"math/big"
+
+	"github.com/phayes/cryptoid"
 )
 
+// Errors
 var (
-	ErrInvalidDigestSize = errors.New("rfc3161: Invalid Message Digest. Invalid size for the given hash algorithm.")
-	ErrUnsupportedHash   = errors.New("rfc3161: Unsupported Hash Algorithm.")
-	ErrUnsupportedExt    = errors.New("rfc3161: Unsupported Critical Extension.")
+	ErrInvalidDigestSize = errors.New("rfc3161: Invalid Message Digest. Invalid size for the given hash algorithm")
+	ErrUnsupportedHash   = errors.New("rfc3161: Unsupported Hash Algorithm")
+	ErrUnsupportedExt    = errors.New("rfc3161: Unsupported Critical Extension")
 )
 
+// TimeStampReq contains a full Time Stamp Request as defined by RFC 3161
+// It is also known as a "Time Stamp Query"
+// When stored into a file it should contain the extension ".tsq"
+// It has a mime-type of "application/timestamp-query"
 type TimeStampReq struct {
 	Version        int                   `asn1:"default:1"`
 	MessageImprint MessageImprint        // A hash algorithm OID and the hash value of the data to be time-stamped
@@ -26,12 +32,13 @@ type TimeStampReq struct {
 	Extensions     []pkix.Extension      `asn1:"optional,tag:0"`
 }
 
+// MessageImprint contains hash algorithm OID and the hash digest of the data to be time-stamped
 type MessageImprint struct {
 	HashAlgorithm pkix.AlgorithmIdentifier
 	HashedMessage []byte
 }
 
-// Given a crypto.Hash algorithm and a message digest, create a new Time Stamp Request
+// NewTimeStampReq creates a new Time Stamp Request, given a crypto.Hash algorithm and a message digest
 func NewTimeStampReq(hash crypto.Hash, digest []byte) (*TimeStampReq, error) {
 	tsr := new(TimeStampReq)
 	tsr.Version = 1
@@ -44,7 +51,7 @@ func NewTimeStampReq(hash crypto.Hash, digest []byte) (*TimeStampReq, error) {
 	return tsr, nil
 }
 
-// Read a .tsq file into a TimeStampReq
+// ReadTSQ reads a .tsq file into a TimeStampReq
 func ReadTSQ(filename string) (*TimeStampReq, error) {
 	der, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -61,17 +68,13 @@ func ReadTSQ(filename string) (*TimeStampReq, error) {
 	return req, nil
 }
 
-// Set the Hash Algorithm and the Hash Digest for the Time Stamp Request
+// SetHashDigest sets the Hash Algorithm and the Hash Digest for the Time Stamp Request
 func (tsr *TimeStampReq) SetHashDigest(hash crypto.Hash, digest []byte) error {
 	if len(digest) != hash.Size() {
 		return ErrInvalidDigestSize
 	}
-	hashAlgo, err := cryptoid.HashAlgorithmByCrypto(hash)
-	if err != nil {
-		return err
-	}
 	pkixAlgo := pkix.AlgorithmIdentifier{
-		Algorithm: hashAlgo.OID,
+		Algorithm: cryptoid.HashAlgorithmByCrypto(hash).OID,
 	}
 
 	tsr.MessageImprint.HashAlgorithm = pkixAlgo
@@ -80,7 +83,7 @@ func (tsr *TimeStampReq) SetHashDigest(hash crypto.Hash, digest []byte) error {
 	return nil
 }
 
-// Get the crypto.Hash for the TimeStampRequest
+// GetHash will get the crypto.Hash for the Time Stamp Request
 // The Hash will be 0 if it is not recognized
 func (tsr *TimeStampReq) GetHash() crypto.Hash {
 	hashAlgo, err := cryptoid.HashAlgorithmByOID(tsr.MessageImprint.HashAlgorithm.Algorithm.String())
@@ -90,7 +93,7 @@ func (tsr *TimeStampReq) GetHash() crypto.Hash {
 	return hashAlgo.Hash
 }
 
-// Generate a 128 bit nonce for the Time Stamp Request
+// GenerateNonce generates a 128 bit nonce for the Time Stamp Request
 // If a different size is required then set manually with tsr.Nonce.SetBytes()
 func (tsr *TimeStampReq) GenerateNonce() error {
 	// Generate a 128 bit nonce
@@ -107,7 +110,7 @@ func (tsr *TimeStampReq) GenerateNonce() error {
 	return nil
 }
 
-// Basic sanity check
+// Verify does a basic sanity check of the Time Stamp Request
 // Checks to make sure the hash is supported, the digest matches the hash,
 // and no unsupported critical extensions exist. Be sure to add all supported
 // extentions to rfc3161.SupportedExtensions.
