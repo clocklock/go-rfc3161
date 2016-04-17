@@ -27,7 +27,7 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = resp.Verify(req)
+	err = resp.Verify(req, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -44,11 +44,10 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = resp.Verify(req)
+	err = resp.Verify(req, nil)
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 // Contruct the tsr manually
@@ -131,7 +130,7 @@ func TestOpenSSL(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = resp.Verify(req)
+	err = resp.Verify(req, nil)
 	if err != nil {
 		t.Error(err)
 	}

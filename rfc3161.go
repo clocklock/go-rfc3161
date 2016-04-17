@@ -15,6 +15,10 @@ var (
 
 // OID Identifiers
 var (
+	// RFC 5280: { id-kp 8 }
+	// RFC 3161: {iso(1) identified-organization(3) dod(6) internet(1) security(5) mechanisms(5) pkix(7) kp (3) timestamping (8)}
+	OidExtKeyUsageTimeStamping = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 8}
+
 	// RFC-2630: iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs7(7) 2
 	OidSignedData = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
 
