@@ -1,6 +1,7 @@
 package rfc3161
 
 import (
+	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"mime"
@@ -22,6 +23,9 @@ var (
 	// Certificate extension: "extKeyUsage": {joint-iso-itu-t(2) ds(5) certificateExtension(29) extKeyUsage(37)}
 	OidExtKeyUsage = asn1.ObjectIdentifier{2, 5, 29, 37}
 
+	// Message Digest: {iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-9(9) messageDigest(4)}
+	OidMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 12}
+
 	// RFC-2630: iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs7(7) 2
 	OidSignedData = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
 
@@ -31,6 +35,11 @@ var (
 
 // Supported Extensions.
 var supportedExtensions []asn1.ObjectIdentifier
+
+// RootCerts is any additional trusted root certificates.
+// It should only be used for testing.
+// It must be initialized with x509.NewCertPool
+var RootCerts *x509.CertPool
 
 // RegisterExtension registers a supported Extension.
 // This is intended to be called from the init function in

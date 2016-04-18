@@ -3,6 +3,7 @@ package rfc3161
 import (
 	"crypto"
 	"crypto/sha1"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,11 +24,7 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := ReadTSR("./test/sha1.response.tsr")
-	if err != nil {
-		t.Error(err)
-	}
-	err = resp.Verify(req, nil)
+	_, err = ReadTSR("./test/sha1.response.tsr")
 	if err != nil {
 		t.Error(err)
 	}
@@ -40,11 +37,7 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err = ReadTSR("./test/sha1_nonce.response.tsr")
-	if err != nil {
-		t.Error(err)
-	}
-	err = resp.Verify(req, nil)
+	_, err = ReadTSR("./test/sha1_nonce.response.tsr")
 	if err != nil {
 		t.Error(err)
 	}
@@ -88,6 +81,8 @@ func TestOpenSSL(t *testing.T) {
 	defer os.RemoveAll(dir) // clean up
 
 	// Files
+	cakey := "cakey.pem"
+	cacert := "cacert.pem"
 	keypath := "private.pem"
 	csrpath := "request.csr"
 	crtpath := "cert.pem"
@@ -107,10 +102,12 @@ func TestOpenSSL(t *testing.T) {
 
 	// Commands
 	commands := [][]string{
+		{"genrsa", "-out", cakey, "1024"},
+		{"req", "-x509", "-new", "-key", cakey, "-out", cacert, "-days", "730", "-subj", "/CN=\"Clock Lock Test CA\""},
 		{"genrsa", "-out", keypath, "1024"},
 		{"req", "-new", "-key", keypath, "-out", csrpath, "-subj", "/C=GB/ST=London/L=London/O=GORFC3161/OU=Testing/CN=example.com", "-config", cnfpath},
-		{"x509", "-req", "-days", "365", "-in", csrpath, "-signkey", keypath, "-out", crtpath, "-extfile", cnfpath},
-		{"ts", "-query", "-data", mespath, "-sha1", "-out", tsqpath},
+		{"x509", "-req", "-days", "365", "-in", csrpath, "-CAkey", cakey, "-CA", cacert, "-set_serial", "01", "-out", crtpath, "-extfile", cnfpath},
+		{"ts", "-query", "-data", mespath, "-sha1", "-cert", "-out", tsqpath},
 		{"ts", "-reply", "-queryfile", tsqpath, "-out", tsrpath, "-inkey", keypath, "-signer", crtpath, "-config", cnfpath},
 	}
 
@@ -120,6 +117,18 @@ func TestOpenSSL(t *testing.T) {
 		if err != nil {
 			t.Error(err, string(out), string(err.(*exec.ExitError).Stderr))
 		}
+	}
+
+	// Add the certificate to the root list
+	RootCerts = x509.NewCertPool()
+	certbytes, err := ioutil.ReadFile(cacert)
+	if err != nil {
+		t.Error(err)
+	}
+
+	ok := RootCerts.AppendCertsFromPEM(certbytes)
+	if !ok {
+		t.Error("Unable to add root cert")
 	}
 
 	req, err := ReadTSQ(tsqpath)
