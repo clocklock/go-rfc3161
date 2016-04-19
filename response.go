@@ -133,6 +133,8 @@ func (resp *TimeStampResp) Verify(req *TimeStampReq, cert *x509.Certificate) err
 		return err
 	}
 
+	// TODO: Verify correct required OIDs
+
 	// TODO: Review RFC3161 for other checks that are needed
 
 	// All checks pass
@@ -462,5 +464,5 @@ type Accuracy struct {
 
 // Duration gets the time.Duration representation of the Accuracy
 func (acc *Accuracy) Duration() time.Duration {
-	return (time.Duration(acc.Seconds) * time.Second) + (time.Duration(acc.Millis) * time.Millisecond) + (time.Duration(acc.Micros) + time.Microsecond)
+	return (time.Duration(acc.Seconds) * time.Second) + (time.Duration(acc.Millis) * time.Millisecond) + (time.Duration(acc.Micros) * time.Microsecond)
 }
