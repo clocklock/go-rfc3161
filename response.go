@@ -65,8 +65,11 @@ func ReadTSR(filename string) (*TimeStampResp, error) {
 
 // Verify does a full verification of the Time Stamp Response
 // including cryptographic verification of the signature
+//
 // If req.CertReq was set to true, cert may be set to nil and it will be loaded
 // from the response automatically
+//
+// WARNING: Does not do any revocation checking
 func (resp *TimeStampResp) Verify(req *TimeStampReq, cert *x509.Certificate) error {
 	tst, err := resp.GetTSTInfo()
 	if err != nil {
@@ -301,9 +304,22 @@ func (sd *SignedData) VerifySignature(cert *x509.Certificate) error {
 	}
 
 	// Verify the signed attributes
+	// This will check the following:
+	// - the content-type is of the type TSTInfo
+	// - the message-digest corresponds to TSTInfo
+	// - there is exactly one digest attribute and one content-type attribute
 	var digestOK, contentOK bool
+	var count int
 	for _, attr := range signer.SignedAttrs {
+		if attr.Type.Equal(OidContentType) {
+			count++
+			oiddata, _ := asn1.Marshal(OidContentTypeTSTInfo)
+			if bytes.Equal(oiddata, attr.Value.Bytes) {
+				contentOK = true
+			}
+		}
 		if attr.Type.Equal(OidMessageDigest) {
+			count++
 			hash := hashAlgo.Hash.New()
 			hash.Write(sd.EContent)
 			digest := hash.Sum(nil)
@@ -311,18 +327,12 @@ func (sd *SignedData) VerifySignature(cert *x509.Certificate) error {
 				digestOK = true
 			}
 		}
-		if attr.Type.Equal(OidContentType) {
-			oiddata, _ := asn1.Marshal(OidContentTypeTSTInfo)
-			if bytes.Equal(oiddata, attr.Value.Bytes) {
-				contentOK = true
-			}
-		}
 	}
-	if !digestOK || !contentOK {
+	if !digestOK || !contentOK || count != 2 {
 		return ErrVerificationError
 	}
 
-	// Everything is AOK
+	// Everything is OK
 	return nil
 }
 
