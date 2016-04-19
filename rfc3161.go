@@ -16,17 +16,20 @@ var (
 
 // OID Identifiers
 var (
-	// RFC 5280: { id-kp 8 }
-	// RFC 3161: {iso(1) identified-organization(3) dod(6) internet(1) security(5) mechanisms(5) pkix(7) kp (3) timestamping (8)}
+	// RFC-5280: { id-kp 8 }
+	// RFC-3161: {iso(1) identified-organization(3) dod(6) internet(1) security(5) mechanisms(5) pkix(7) kp (3) timestamping (8)}
 	OidExtKeyUsageTimeStamping = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 8}
 
 	// Certificate extension: "extKeyUsage": {joint-iso-itu-t(2) ds(5) certificateExtension(29) extKeyUsage(37)}
 	OidExtKeyUsage = asn1.ObjectIdentifier{2, 5, 29, 37}
 
-	// Message Digest: {iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-9(9) messageDigest(4)}
-	OidMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 12}
+	// RFC-5652: Content Type: {iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-9(9) contentType(3)}
+	OidContentType = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
 
-	// RFC-2630: iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs7(7) 2
+	// RFC-5652: Message Digest: {iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-9(9) messageDigest(4)}
+	OidMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
+
+	// RFC-5652: iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs7(7) 2
 	OidSignedData = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
 
 	// RFC-3161: iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) pkcs-9(9) smime(16) ct(1) 4

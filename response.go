@@ -33,6 +33,7 @@ var (
 	ErrInvalidSignatureDigestAlgo  = errors.New("rfc3161: response: Invalid signature digest algorithm")
 	ErrUnsupportedSignerInfos      = errors.New("rfc3161: response: package only supports responses with a single SignerInfo")
 	ErrUnableToParseSID            = errors.New("rfc3161: response: Unable to parse SignerInfo.sid")
+	ErrVerificationError           = errors.New("rfc3161: response: Verfication error")
 )
 
 // TimeStampResp contains a full Time Stamp Response as defined by RFC 3161
@@ -256,7 +257,7 @@ func (sd *SignedData) GetSigningCert() (*x509.Certificate, error) {
 	return cert, nil
 }
 
-// VerifySignature Verifies that the given certificate signed the TSTInfo
+// VerifySignature verifies that the given certificate signed the TSTInfo
 func (sd *SignedData) VerifySignature(cert *x509.Certificate) error {
 	// Get the signerInfo
 	if len(sd.SignerInfos) != 1 {
@@ -269,15 +270,19 @@ func (sd *SignedData) VerifySignature(cert *x509.Certificate) error {
 		return err
 	}
 
-	// Hack the DER bytes of the Signed Attributes to be EXPLICIT SET
-	mesbytes := make([]byte, len(signer.SignedAttrs.FullBytes), len(signer.SignedAttrs.FullBytes))
-	copy(mesbytes, signer.SignedAttrs.FullBytes)
-	mesbytes[0] = '\x31'
-	mesbytes[1] = '\x81'
+	// Marshal the Signed Attributes
+	derbytes, err := asn1.Marshal(signer.SignedAttrs)
+	if err != nil {
+		return err
+	}
 
-	// Hash the message byte
+	// Hack the DER bytes of the Signed Attributes to be EXPLICIT SET
+	derbytes[0] = 0x31
+	derbytes[1] = 0x81
+
+	// Hash the DER bytes
 	hash := hashAlgo.Hash.New()
-	hash.Write(mesbytes)
+	hash.Write(derbytes)
 	digest := hash.Sum(nil)
 
 	// Unpack the public key
@@ -286,10 +291,30 @@ func (sd *SignedData) VerifySignature(cert *x509.Certificate) error {
 	// Verify the signature
 	err = rsa.VerifyPKCS1v15(pub, hashAlgo.Hash, digest, signer.Signature)
 	if err != nil {
-		return err
+		return ErrVerificationError
 	}
 
-	// TODO Check signer.SignedAttrs
+	// Verify the signed attributes
+	var digestOK, contentOK bool
+	for _, attr := range signer.SignedAttrs {
+		if attr.Type.Equal(OidMessageDigest) {
+			hash := hashAlgo.Hash.New()
+			hash.Write(sd.EContent)
+			digest := hash.Sum(nil)
+			if bytes.Equal(digest, attr.Value.Bytes[2:]) {
+				digestOK = true
+			}
+		}
+		if attr.Type.Equal(OidContentType) {
+			oiddata, _ := asn1.Marshal(OidContentTypeTSTInfo)
+			if bytes.Equal(oiddata, attr.Value.Bytes) {
+				contentOK = true
+			}
+		}
+	}
+	if !digestOK || !contentOK {
+		return ErrVerificationError
+	}
 
 	// Everything is AOK
 	return nil
@@ -308,7 +333,7 @@ type SignerInfo struct {
 	Version            int           `asn1:"default:1"`
 	SID                asn1.RawValue // CHOICE. See SignerInfo.GetSID()
 	DigestAlgorithm    pkix.AlgorithmIdentifier
-	SignedAttrs        asn1.RawValue `asn1:"tag:0"`
+	SignedAttrs        []Attribute `asn1:"tag:0"`
 	SignatureAlgorithm pkix.AlgorithmIdentifier
 	Signature          []byte
 	UnsignedAtrributes []Attribute `asn1:"optional,tag:1"`
@@ -354,7 +379,7 @@ type IssuerAndSerialNumber struct {
 //   Type.
 type Attribute struct {
 	Type  asn1.ObjectIdentifier
-	Value asn1.RawValue `asn1:"set"`
+	Value asn1.RawValue
 }
 
 // EncapsulatedContentInfo is defined in RFC 2630
