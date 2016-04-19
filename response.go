@@ -34,6 +34,7 @@ var (
 	ErrUnsupportedSignerInfos      = errors.New("rfc3161: response: package only supports responses with a single SignerInfo")
 	ErrUnableToParseSID            = errors.New("rfc3161: response: Unable to parse SignerInfo.sid")
 	ErrVerificationError           = errors.New("rfc3161: response: Verfication error")
+	ErrInvalidOID                  = errors.New("rfc3161: response: Invalid OID")
 )
 
 // TimeStampResp contains a full Time Stamp Response as defined by RFC 3161
@@ -92,6 +93,11 @@ func (resp *TimeStampResp) Verify(req *TimeStampReq, cert *x509.Certificate) err
 		return ErrIncorrectNonce
 	}
 
+	// Verify that the OIDs are correct
+	if !resp.ContentType.Equal(OidSignedData) || !resp.EContentType.Equal(OidContentTypeTSTInfo) {
+		return ErrInvalidOID
+	}
+
 	// Get the certificate
 	respcert, err := resp.GetSigningCert()
 	if err != nil {
@@ -132,8 +138,6 @@ func (resp *TimeStampResp) Verify(req *TimeStampReq, cert *x509.Certificate) err
 	if err != nil {
 		return err
 	}
-
-	// TODO: Verify correct required OIDs
 
 	// TODO: Review RFC3161 for other checks that are needed
 
