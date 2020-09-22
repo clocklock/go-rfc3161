@@ -44,10 +44,10 @@ func (client *Client) Do(tsq *TimeStampReq) (*TimeStampResp, error) {
 	req.Header.Set("Content-Type", "application/timestamp-query")
 
 	resp, err := client.HTTPClient.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
