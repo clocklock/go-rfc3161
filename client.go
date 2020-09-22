@@ -32,7 +32,7 @@ func NewClient(url string) *Client {
 // This will not verify the response. It is the caller's responsibility
 // to call resp.Verify() on the returned TimeStampResp.
 func (client *Client) Do(tsq *TimeStampReq) (*TimeStampResp, error) {
-	der, err := asn1.Marshal(tsq)
+	der, err := asn1.Marshal(*tsq)
 	if err != nil {
 		return nil, err
 	}
