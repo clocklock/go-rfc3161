@@ -5,8 +5,6 @@ import (
 	"encoding/asn1"
 	"errors"
 	"mime"
-
-	"github.com/cryptoballot/entropychecker"
 )
 
 // Misc Errors
@@ -89,13 +87,6 @@ func setMimeTypes() error {
 }
 
 func init() {
-	// Make sure we have sufficient entropy and fail to start if there isn't
-	// This only works on Linux.
-	err := entropychecker.WaitForEntropy()
-	if err != nil && err != entropychecker.ErrUnsupportedOS {
-		panic(err)
-	}
-
 	err = setMimeTypes()
 	if err != nil {
 		panic(err)
