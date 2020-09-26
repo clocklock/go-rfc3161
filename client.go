@@ -32,7 +32,7 @@ func NewClient(url string) *Client {
 // This will not verify the response. It is the caller's responsibility
 // to call resp.Verify() on the returned TimeStampResp.
 func (client *Client) Do(tsq *TimeStampReq) (*TimeStampResp, error) {
-	der, err := asn1.Marshal(tsq)
+	der, err := asn1.Marshal(*tsq)
 	if err != nil {
 		return nil, err
 	}
@@ -44,10 +44,10 @@ func (client *Client) Do(tsq *TimeStampReq) (*TimeStampResp, error) {
 	req.Header.Set("Content-Type", "application/timestamp-query")
 
 	resp, err := client.HTTPClient.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
